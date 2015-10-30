@@ -279,12 +279,14 @@ everythingStaged stage k z f x
   | (const False
 #if __GLASGOW_HASKELL__ <= 708
       `extQ` postTcType
+      `extQ` nameList
 #endif
       `extQ` fixity `extQ` nameSet) x = z
   | otherwise = foldl k (f x) (gmapQ (everythingStaged stage k z f) x)
   where nameSet    = const (stage `elem` [Parser,TypeChecker]) :: NameSet -> Bool
 #if __GLASGOW_HASKELL__ <= 708
         postTcType = const (stage<TypeChecker)                 :: PostTcType -> Bool
+        nameList   = const (stage<TypeChecker)                 :: [Name] -> Bool
 #endif
         fixity     = const (stage<Renamer)                     :: GHC.Fixity -> Bool
 
