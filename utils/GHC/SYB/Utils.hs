@@ -198,6 +198,10 @@ import GHC.SYB.Instances
 import Control.Monad
 import Data.List
 
+#if __GLASGOW_HASKELL__ <= 708
+import Coercion
+#endif
+
 #if __GLASGOW_HASKELL__ < 709
 nameSetElems :: NameSet -> [Name]
 nameSetElems = nameSetToList
@@ -211,6 +215,7 @@ showSDoc_ = showSDoc
 #else
 showSDoc_ = showSDoc tracingDynFlags
 #endif
+
 
 -- | Ghc Ast types tend to have undefined holes, to be filled
 --   by later compiler phases. We tag Asts with their source,
@@ -229,6 +234,8 @@ showData stage n =
           `extQ` bagName `extQ` bagRdrName `extQ` bagVar `extQ` nameSet
 #if __GLASGOW_HASKELL__ <= 708
           `extQ` postTcType
+          `extQ` nameList
+          `extQ` coercion
 #endif
           `extQ` fixity
   where generic :: Data a => a -> String
@@ -267,6 +274,10 @@ showData stage n =
 #if __GLASGOW_HASKELL__ <= 708
         postTcType | stage<TypeChecker = const "{!type placeholder here?!}" :: PostTcType -> String
                    | otherwise     = showSDoc_ . ppr :: Type -> String
+        nameList   | stage<TypeChecker = const "{![Name] placeholder here?!}" :: [Name] -> String
+                   | otherwise     = showSDoc_ . ppr :: [Name] -> String
+        coercion   | stage<TypeChecker = const "{!Coercion placeholder here?!}" :: Coercion -> String
+                   | otherwise     = showSDoc_ . ppr :: Coercion -> String
 #endif
         fixity | stage<Renamer = const "{!fixity placeholder here?!}" :: GHC.Fixity -> String
                | otherwise     = ("{Fixity: "++) . (++"}") . showSDoc_ . ppr :: GHC.Fixity -> String
@@ -280,6 +291,7 @@ everythingStaged stage k z f x
 #if __GLASGOW_HASKELL__ <= 708
       `extQ` postTcType
       `extQ` nameList
+      `extQ` coercion
 #endif
       `extQ` fixity `extQ` nameSet) x = z
   | otherwise = foldl k (f x) (gmapQ (everythingStaged stage k z f) x)
@@ -287,6 +299,7 @@ everythingStaged stage k z f x
 #if __GLASGOW_HASKELL__ <= 708
         postTcType = const (stage<TypeChecker)                 :: PostTcType -> Bool
         nameList   = const (stage<TypeChecker)                 :: [Name] -> Bool
+        coercion   = const (stage<TypeChecker)                 :: Coercion -> Bool
 #endif
         fixity     = const (stage<Renamer)                     :: GHC.Fixity -> Bool
 
@@ -304,6 +317,8 @@ everythingButStaged stage k z f x
   | (const False
 #if __GLASGOW_HASKELL__ <= 708
        `extQ` postTcType
+       `extQ` nameList
+       `extQ` coercion
 #endif
        `extQ` fixity `extQ` nameSet) x = z
   | stop == True = v
@@ -312,6 +327,8 @@ everythingButStaged stage k z f x
         nameSet    = const (stage `elem` [Parser,TypeChecker]) :: NameSet -> Bool
 #if __GLASGOW_HASKELL__ <= 708
         postTcType = const (stage<TypeChecker)                 :: PostTcType -> Bool
+        nameList   = const (stage<TypeChecker)                 :: [Name] -> Bool
+        coercion   = const (stage<TypeChecker)                 :: Coercion -> Bool
 #endif
         fixity     = const (stage<Renamer)                     :: GHC.Fixity -> Bool
 
@@ -335,12 +352,16 @@ somewhereStaged stage f x
   | (const False
 #if __GLASGOW_HASKELL__ <= 708
        `extQ` postTcType
+       `extQ` nameList
+       `extQ` coercion
 #endif
        `extQ` fixity `extQ` nameSet) x = mzero
   | otherwise = f x `mplus` gmapMp (somewhereStaged stage f) x
   where nameSet    = const (stage `elem` [Parser,TypeChecker]) :: NameSet -> Bool
 #if __GLASGOW_HASKELL__ <= 708
         postTcType = const (stage<TypeChecker)                 :: PostTcType -> Bool
+        nameList   = const (stage<TypeChecker)                 :: [Name] -> Bool
+        coercion   = const (stage<TypeChecker)                 :: Coercion -> Bool
 #endif
         fixity     = const (stage<Renamer)                     :: GHC.Fixity -> Bool
 
@@ -374,6 +395,8 @@ everywhereMStaged stage f x
   | (const False
 #if __GLASGOW_HASKELL__ <= 708
        `extQ` postTcType
+       `extQ` nameList
+       `extQ` coercion
 #endif
        `extQ` fixity `extQ` nameSet) x = return x
   | otherwise = do x' <- gmapM (everywhereMStaged stage f) x
@@ -381,6 +404,8 @@ everywhereMStaged stage f x
   where nameSet    = const (stage `elem` [Parser,TypeChecker]) :: NameSet -> Bool
 #if __GLASGOW_HASKELL__ <= 708
         postTcType = const (stage<TypeChecker)                 :: PostTcType -> Bool
+        nameList   = const (stage<TypeChecker)                 :: [Name] -> Bool
+        coercion   = const (stage<TypeChecker)                 :: Coercion -> Bool
 #endif
         fixity     = const (stage<Renamer)                     :: GHC.Fixity -> Bool
 
