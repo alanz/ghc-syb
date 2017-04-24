@@ -185,7 +185,9 @@ import qualified OccName(occNameString)
 import Bag(Bag,bagToList)
 import Var(Var)
 import FastString(FastString)
-#if __GLASGOW_HASKELL__ >= 709
+#if __GLASGOW_HASKELL__ > 800
+import NameSet(NameSet,nameSetElemsStable)
+#elif __GLASGOW_HASKELL__ >= 709
 import NameSet(NameSet,nameSetElems)
 #else
 import NameSet(NameSet,nameSetToList)
@@ -269,7 +271,11 @@ showData stage n =
         nameSet | stage `elem` [Parser,TypeChecker] 
                 = const ("{!NameSet placeholder here!}") :: NameSet -> String
                 | otherwise     
+#if __GLASGOW_HASKELL__ > 800
+                = ("{NameSet: "++) . (++"}") . list . nameSetElemsStable
+#else
                 = ("{NameSet: "++) . (++"}") . list . nameSetElems 
+#endif
 
 #if __GLASGOW_HASKELL__ <= 708
         postTcType | stage<TypeChecker = const "{!type placeholder here?!}" :: PostTcType -> String
